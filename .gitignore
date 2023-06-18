@@ -6,3 +6,4 @@ _*
 kernel/kernel
 *.out
 initcode
+fs.img
