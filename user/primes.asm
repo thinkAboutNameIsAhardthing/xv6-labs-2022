@@ -26,8 +26,8 @@ void primes(int in){
   1a:	e511                	bnez	a0,26 <primes+0x26>
     }
     close(p[1]);
+    wait(0);
   }
-  wait(0);
   //printf("process: %d end\n", getpid());
 }
   1c:	70a2                	ld	ra,40(sp)
@@ -61,7 +61,7 @@ void primes(int in){
   68:	fd042503          	lw	a0,-48(s0)
   6c:	00000097          	auipc	ra,0x0
   70:	382080e7          	jalr	898(ra) # 3ee <close>
-  74:	a0b9                	j	c2 <primes+0xc2>
+  74:	b765                	j	1c <primes+0x1c>
     close(p[0]);
   76:	fd042503          	lw	a0,-48(s0)
   7a:	00000097          	auipc	ra,0x0
@@ -89,7 +89,7 @@ void primes(int in){
   b6:	fd442503          	lw	a0,-44(s0)
   ba:	00000097          	auipc	ra,0x0
   be:	334080e7          	jalr	820(ra) # 3ee <close>
-  wait(0);
+    wait(0);
   c2:	4501                	li	a0,0
   c4:	00000097          	auipc	ra,0x0
   c8:	30a080e7          	jalr	778(ra) # 3ce <wait>

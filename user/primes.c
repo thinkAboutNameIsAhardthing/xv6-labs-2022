@@ -24,8 +24,8 @@ void primes(int in){
       }
     }
     close(p[1]);
+    wait(0);
   }
-  wait(0);
   //printf("process: %d end\n", getpid());
 }
 
