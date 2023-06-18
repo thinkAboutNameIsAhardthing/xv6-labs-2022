@@ -3,3 +3,5 @@
 *.sym
 *.d
 _*
+kernel/kernel
+*.out
