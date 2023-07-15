@@ -49,8 +49,10 @@ main(int argc, char *argv[])
     grep(pattern, 0);
     exit(0);
   }
+  // printf("%d\n", argc);
 
   for(i = 2; i < argc; i++){
+    printf("file name: %s\n", argv[i]);
     if((fd = open(argv[i], 0)) < 0){
       printf("grep: cannot open %s\n", argv[i]);
       exit(1);

@@ -7,3 +7,4 @@ kernel/kernel
 *.out
 initcode
 fs.img
+.vscode

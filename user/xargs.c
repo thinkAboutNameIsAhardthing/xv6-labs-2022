@@ -6,7 +6,7 @@ int
 main(int argc, char *argv[])
 {
   if (argc < 2) {
-    fprintf(2, "xargs need at least 1 argument");
+    fprintf(2, "xargs needs at least 1 argument");
     exit(1);
   }
   char buf[512], arg[512];
