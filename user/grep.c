@@ -50,11 +50,10 @@ main(int argc, char *argv[])
     grep(pattern, 0);
     exit(0);
   }
-  // printf("%d\n", argc);
 
   for(i = 2; i < argc; i++){
     if((fd = open(argv[i], O_RDONLY)) < 0){
-     printf("grep: cannot open %s\n", argv[i]);
+      printf("grep: cannot open %s\n", argv[i]);
       exit(1);
     }
     grep(pattern, fd);

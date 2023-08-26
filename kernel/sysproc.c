@@ -1,11 +1,10 @@
 #include "types.h"
 #include "riscv.h"
-#include "defs.h"
 #include "param.h"
+#include "defs.h"
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
-#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -55,9 +54,8 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
+
   argint(0, &n);
-  if(n < 0)
-    n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
@@ -70,6 +68,25 @@ sys_sleep(void)
   release(&tickslock);
   return 0;
 }
+
+
+#ifdef LAB_PGTBL
+int
+sys_pgaccess(void)
+{
+  uint64 base, mask;
+  int len;
+
+  argaddr(0, &base);
+  argint(1, &len);
+  argaddr(2, &mask);
+
+  if(len > 64)
+    return -1;
+
+  return pgaccess(myproc()->pagetable, base, len, mask);
+}
+#endif
 
 uint64
 sys_kill(void)
@@ -91,27 +108,4 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
-}
-
-uint64
-sys_trace(void)
-{
-  int mask;
-  argint(0, &mask);
-  myproc()->mask = mask;
-  return 0;
-}
-
-uint64
-sys_sysinfo()
-{
-  struct sysinfo mySysinfo;
-  mySysinfo.freemem = freemem();
-  mySysinfo.nproc = nproc();
-
-  uint64 info; // user pointer to struct stat
-  argaddr(0, &info);
-  if(copyout(myproc()->pagetable, info, (char *)&mySysinfo, sizeof(mySysinfo)) < 0)
-    return -1;
-  return 0;
 }
