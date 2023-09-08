@@ -120,7 +120,23 @@ sys_sigreturn(void)
 {
   struct proc* p = myproc();
 
-  memmove(p->trapframe, p->resume_trapframe, PGSIZE);
+  // memmove(p->trapframe, p->resume_trapframe, PGSIZE);
+
+  p->trapframe->epc = p->resume_epc;
+  p->trapframe->ra = p->resume_ra;
+  p->trapframe->sp = p->resume_sp;
+  p->trapframe->a0 = p->resume_a0;
+  p->trapframe->a1 = p->resume_a1;
+  p->trapframe->a2 = p->resume_a2;
+  p->trapframe->a3 = p->resume_a3;
+  p->trapframe->a4 = p->resume_a4;
+  p->trapframe->a5 = p->resume_a5;
+  p->trapframe->s0 = p->resume_s0;
+  p->trapframe->s1 = p->resume_s1;
+  p->trapframe->s2 = p->resume_s2;
+  p->trapframe->s3 = p->resume_s3;
+  p->trapframe->s4 = p->resume_s4;
+  p->trapframe->s5 = p->resume_s5;
 
   p->in_handler = 0;
   return 0;

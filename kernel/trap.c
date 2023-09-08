@@ -82,7 +82,22 @@ usertrap(void)
     if(p->in_handler == 0 && p->nticks != 0 && p->ticks_left == 0){
       p->ticks_left = p->nticks;
 
-      memmove(p->resume_trapframe, p->trapframe, PGSIZE);
+      // memmove(p->resume_trapframe, p->trapframe, PGSIZE);
+      p->resume_epc = p->trapframe->epc;
+      p->resume_ra = p->trapframe->ra;
+      p->resume_sp = p->trapframe->sp;
+      p->resume_a0 = p->trapframe->a0;
+      p->resume_a1 = p->trapframe->a1;
+      p->resume_a2 = p->trapframe->a2;
+      p->resume_a3 = p->trapframe->a3;
+      p->resume_a4 = p->trapframe->a4;
+      p->resume_a5 = p->trapframe->a5;
+      p->resume_s0 = p->trapframe->s0;
+      p->resume_s1 = p->trapframe->s1;
+      p->resume_s2 = p->trapframe->s2;
+      p->resume_s3 = p->trapframe->s3;
+      p->resume_s4 = p->trapframe->s4;
+      p->resume_s5 = p->trapframe->s5;
 
       p->trapframe->epc = p->alarm_handler;
       p->in_handler = 1;
