@@ -1,7 +1,7 @@
 #include "types.h"
 #include "riscv.h"
-#include "param.h"
 #include "defs.h"
+#include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
@@ -54,8 +54,9 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
-
   argint(0, &n);
+  if(n < 0)
+    n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
@@ -66,27 +67,9 @@ sys_sleep(void)
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
+  backtrace();
   return 0;
 }
-
-
-#ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
-{
-  uint64 base, mask;
-  int len;
-
-  argaddr(0, &base);
-  argint(1, &len);
-  argaddr(2, &mask);
-
-  if(len > 64)
-    return -1;
-
-  return pgaccess(myproc()->pagetable, base, len, mask);
-}
-#endif
 
 uint64
 sys_kill(void)
@@ -108,4 +91,37 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_sigalarm(void)
+{
+  int ticks;
+  uint64 handler;
+  struct proc* p = myproc();
+
+  argint(0, &ticks);
+  argaddr(1, &handler);
+
+  if(ticks != 0) {
+    p->nticks = ticks;
+    p->alarm_handler = handler;
+    p->ticks_left = ticks;
+  } else {
+    p->nticks = 0;
+    p->alarm_handler = 0;
+    p->ticks_left = 0;
+  }
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc* p = myproc();
+
+  memmove(p->trapframe, p->resume_trapframe, PGSIZE);
+
+  p->in_handler = 0;
+  return 0;
 }

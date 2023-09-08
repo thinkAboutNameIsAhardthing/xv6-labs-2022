@@ -1,0 +1,7 @@
+1. a0 a1 a2..., a2
+2. no call, 12 is passed directly(function is inlined)
+3. 0x642
+4. 0x38
+5. HE110 World
+big-endian: no change to 57616, i -> 0x726c64
+6. value in a2 since printf will take value in the a2. We don't pass value to a2 so it would be random value in a2
