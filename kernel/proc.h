@@ -104,25 +104,4 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int nticks;                  // call handler every nticks
-  uint64 alarm_handler;        // handler when alarm
-  uint64 ticks_left;           // ticks left until next handler call
-  // void* resume_trapframe;      // reserved trapframe
-  uint64 resume_epc;
-  uint64 resume_ra;
-  uint64 resume_sp;
-  uint64 resume_a0;
-  uint64 resume_a1;
-  uint64 resume_a2;
-  uint64 resume_a3;
-  uint64 resume_a4;
-  uint64 resume_a5;
-  uint64 resume_s0;
-  uint64 resume_s1;
-  uint64 resume_s2;
-  uint64 resume_s3;
-  uint64 resume_s4;
-  uint64 resume_s5;
-
-  int in_handler;
 };

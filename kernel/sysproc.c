@@ -67,7 +67,6 @@ sys_sleep(void)
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
-  backtrace();
   return 0;
 }
 
@@ -91,53 +90,4 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
-}
-
-uint64
-sys_sigalarm(void)
-{
-  int ticks;
-  uint64 handler;
-  struct proc* p = myproc();
-
-  argint(0, &ticks);
-  argaddr(1, &handler);
-
-  if(ticks != 0) {
-    p->nticks = ticks;
-    p->alarm_handler = handler;
-    p->ticks_left = ticks;
-  } else {
-    p->nticks = 0;
-    p->alarm_handler = 0;
-    p->ticks_left = 0;
-  }
-  return 0;
-}
-
-uint64
-sys_sigreturn(void)
-{
-  struct proc* p = myproc();
-
-  // memmove(p->trapframe, p->resume_trapframe, PGSIZE);
-
-  p->trapframe->epc = p->resume_epc;
-  p->trapframe->ra = p->resume_ra;
-  p->trapframe->sp = p->resume_sp;
-  p->trapframe->a0 = p->resume_a0;
-  p->trapframe->a1 = p->resume_a1;
-  p->trapframe->a2 = p->resume_a2;
-  p->trapframe->a3 = p->resume_a3;
-  p->trapframe->a4 = p->resume_a4;
-  p->trapframe->a5 = p->resume_a5;
-  p->trapframe->s0 = p->resume_s0;
-  p->trapframe->s1 = p->resume_s1;
-  p->trapframe->s2 = p->resume_s2;
-  p->trapframe->s3 = p->resume_s3;
-  p->trapframe->s4 = p->resume_s4;
-  p->trapframe->s5 = p->resume_s5;
-
-  p->in_handler = 0;
-  return 0;
 }

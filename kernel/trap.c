@@ -67,6 +67,18 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 15){
+    if(r_stval() >= MAXVA){
+      setkilled(p);
+    } else {
+      // child pte & pa
+      pte_t* pte = walk(p->pagetable, r_stval(), 0);
+      if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 || (*pte & PTE_COW) == 0){
+        setkilled(p);
+      } else if(cow(pte, r_stval()) != 0){
+        setkilled(p);
+      };
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -77,33 +89,8 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2){
-    p->ticks_left--;
-    if(p->in_handler == 0 && p->nticks != 0 && p->ticks_left == 0){
-      p->ticks_left = p->nticks;
-
-      // memmove(p->resume_trapframe, p->trapframe, PGSIZE);
-      p->resume_epc = p->trapframe->epc;
-      p->resume_ra = p->trapframe->ra;
-      p->resume_sp = p->trapframe->sp;
-      p->resume_a0 = p->trapframe->a0;
-      p->resume_a1 = p->trapframe->a1;
-      p->resume_a2 = p->trapframe->a2;
-      p->resume_a3 = p->trapframe->a3;
-      p->resume_a4 = p->trapframe->a4;
-      p->resume_a5 = p->trapframe->a5;
-      p->resume_s0 = p->trapframe->s0;
-      p->resume_s1 = p->trapframe->s1;
-      p->resume_s2 = p->trapframe->s2;
-      p->resume_s3 = p->trapframe->s3;
-      p->resume_s4 = p->trapframe->s4;
-      p->resume_s5 = p->trapframe->s5;
-
-      p->trapframe->epc = p->alarm_handler;
-      p->in_handler = 1;
-    }
+  if(which_dev == 2)
     yield();
-  }
 
   usertrapret();
 }
@@ -244,3 +231,54 @@ devintr()
   }
 }
 
+int
+cow(pte_t *pte, uint64 va)
+{
+  uint64 pa = PTE2PA(*pte);
+  if(check_ref((void *)pa) == 1){
+    *pte &= ~PTE_COW;
+    *pte |= PTE_W;
+    return 0;
+  }
+
+  struct proc *p = myproc();
+  // printf("%d\n", p->pid);
+  // printf("%d\n", p->parent->pid);
+  // printf("%x\n", va);
+
+  // allocate new page and copy content
+  void *mem = kalloc();
+  if(mem == 0){
+    setkilled(p);
+    return -1;
+  }
+  memmove(mem, (void*)pa, PGSIZE);
+  //printf("%x\n", tmp);
+  *pte &= ~PTE_COW;;
+  //printf("%x\n", *pte);
+  //printf("%x\n", *pte & ~PTE_COW);
+  *pte |= PTE_W;
+  uint flags = PTE_FLAGS(*pte);
+  //vmprint(p->pagetable);
+  uvmunmap(p->pagetable, PGROUNDDOWN(va), 1, 1);
+  //vmprint(p->pagetable);
+  if(mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)mem, flags) != 0){
+    // panic("fail to map child page when cow");
+    return -1;
+  }
+  //vmprint(p->pagetable);
+  //struct proc *parent = p->parent;
+  //printf("%x\n", *parent);
+  //pte_t* parent_pte = walk(parent->pagetable, va, 0);
+  //printf("%x\n", *parent_pte);
+  //vmprint(parent->pagetable);
+  // if(parent_pte == 0 || (*parent_pte & PTE_V) == 0 || (*parent_pte & PTE_U) == 0 || (*parent_pte & PTE_COW) == 0){
+  //   // panic("write invalid or not COW parent page");
+  //   return -1;
+  // }
+  // *parent_pte &= ~PTE_COW;
+  // *parent_pte |= PTE_W;
+  //printf("%x\n", *parent_pte);
+  //vmprint(parent->pagetable);
+  return 0;
+}
