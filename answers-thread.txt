@@ -1,0 +1,5 @@
+1. The entry list is not protected when updated so while thread 1 is trying to update the list, thread 2 may have already updated the list after thread 1 get the old list head but haven't updated the head.
+thread 1 get entry
+thread 2 get entry
+thread 2 update entry(now the entry thread 1 has is out-dated)
+thread 1 update entry
