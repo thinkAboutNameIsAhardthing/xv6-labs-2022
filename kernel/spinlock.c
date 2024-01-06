@@ -95,8 +95,11 @@ acquire(struct spinlock *lk)
 void
 release(struct spinlock *lk)
 {
-  if(!holding(lk))
+  if(!holding(lk)) {
+    printf("%s\n", lk->name);
     panic("release");
+
+  }
 
   lk->cpu = 0;
 
@@ -210,6 +213,7 @@ statslock(char *buf, int sz) {
     n += snprint_lock(buf+n, sz-n, locks[top]);
     last = locks[top]->nts;
   }
+  printf("tot= %d\n", tot);
   n += snprintf(buf+n, sz-n, "tot= %d\n", tot);
   release(&lock_locks);  
   return n;
