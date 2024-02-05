@@ -67,6 +67,30 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 13){
+    if(r_stval() >= MAXVA){
+      setkilled(p);
+    } else {
+      // vmprint(p->pagetable);
+      uint64 addr = r_stval();
+      // printf("vma trap cause: %d\n", r_scause());
+      // printf("vma address: %p\n", addr);
+      struct vma* v = 0;
+      for(int i = 0; i < VMA_SIZE; ++i) {
+        if(p->vma_table[i].addr <= addr && p->vma_table[i].addr + p->vma_table[i].length >= addr){
+          v = &p->vma_table[i];
+          break;
+        }
+      }
+      // printf("vma get: %p\n", v->addr);
+      if(v == 0)
+        setkilled(p);
+      else {
+        if(vma_map_page(p->pagetable, v, addr) != 0){
+          setkilled(p);
+        }
+      }
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

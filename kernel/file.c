@@ -12,6 +12,7 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "fcntl.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -180,3 +181,73 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+int
+vma_map_page(pagetable_t pagetable, struct vma* v, uint64 addr)
+{
+  void* pa;
+  if((pa = kalloc()) == 0)
+    return -1;
+  memset(pa, 0, PGSIZE);
+
+  uint64 va = PGROUNDDOWN(addr);
+  // printf("mem allocated: %p for %p\n", pa, va);
+  // printf("permission: %d, mode: %d\n", v->permission, v->mode);
+  if(mappages(pagetable, va, PGSIZE, (uint64)pa, (v->permission << 1) | PTE_V | PTE_U) != 0){
+    panic("fail to map page for vma");
+    return -1;
+  }
+  //vmprint(pagetable);
+
+  // printf("read inode: %p %d\n", va, va - v->addr);
+  int size = v->file->ip->size - (va - v->addr);
+  if(size > PGSIZE)
+    size = PGSIZE;
+  if(readi(v->file->ip, 1, va, va - v->addr, size) != size){
+    return -1;
+  }
+  return 0;
+}
+
+
+int
+vma_unmap(pagetable_t pagetable, struct vma* v, uint64 addr, int length)
+{
+  //printf("vma unmap: %p %d %d %d %p %d\n", v->addr, v->length, v->mode, v->permission, addr, length);
+  //printf("permission: %d, mode: %d %d\n", v->permission, v->mode, MAP_SHARED);
+  int size = v->file->ip->size - v->file->off;
+  if(size > length)
+    size = length;
+  
+  //printf("permission: %d, mode: %d\n", v->permission, v->mode);
+  if(size >0 && v->mode == MAP_SHARED && (v->permission & PROT_WRITE) != 0 && filewrite(v->file, addr, size) != size)
+    return -1;
+  
+  //uvmunmap(pagetable, addr, PGROUNDUP(length)/PGSIZE, 1);
+  pte_t *pte;
+  for(uint64 i = addr; i < addr + length; i += PGSIZE){
+    if((pte = walk(pagetable, i, 0)) == 0)
+      panic("vma unmap: walk");
+    if((*pte & PTE_V) == 0)
+      continue;
+    if(PTE_FLAGS(*pte) == PTE_V)
+      panic("uvmunmap: not a leaf");
+    uint64 pa = PTE2PA(*pte);
+    kfree((void*)pa);
+    *pte = 0;
+  }
+  
+  if(v->addr == addr && v->length == length){
+    //printf("vma unmap free\n");
+    v->addr = 0;
+    fileclose(v->file);
+  } else {
+    if(v->addr == addr){
+      v->addr += length;
+      v->file->off += length;
+      v->length -= length;
+    }
+    else if (addr + length == v->addr + v->length)
+      v->length -= length;
+  }
+  return 0;
+}

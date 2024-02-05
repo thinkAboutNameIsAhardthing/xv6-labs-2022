@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -124,6 +125,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->vma_start = MAXVA - 150 * PGSIZE;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -302,6 +304,17 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  // duplicate vma for child
+  for (int i = 0; i < VMA_SIZE; ++i){
+    if (p->vma_table[i].addr != 0){
+      np->vma_table[i].addr = p->vma_table[i].addr;
+      np->vma_table[i].length = p->vma_table[i].length;
+      np->vma_table[i].file = filedup(p->vma_table[i].file);
+      np->vma_table[i].permission = p->vma_table[i].permission;
+      np->vma_table[i].mode = p->vma_table[i].mode;
+    }
+  }
+
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -350,6 +363,16 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+
+  // unmap all vma
+  for (int i = 0; i < VMA_SIZE; ++i){
+    if (p->vma_table[i].addr != 0){
+      //printf("exit unmap: %d %p %d %d %d\n", i, p->vma_table[i].addr, p->vma_table[i].permission, p->vma_table[i].mode, p->vma_table[i].length);
+      if(vma_unmap(p->pagetable, &p->vma_table[i], p->vma_table[i].addr, p->vma_table[i].length) != 0){
+        panic("unmap when exit");
+      }
+    }
+  }
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
@@ -680,4 +703,32 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+struct vma*
+vma_alloc(struct proc* p)
+{
+  for (int i = 0; i < VMA_SIZE; ++i){
+    if (p->vma_table[i].addr == 0){
+      //printf("vma alloc: %d\n", i);
+      return &p->vma_table[i];
+    }
+  }
+  return 0;
+}
+
+int
+vma_verify(struct vma* v, pagetable_t pagetable)
+{
+  uint64 i;
+  pte_t *pte = 0;
+
+  for(i = v->addr; i < v->addr+v->length; i += PGSIZE){
+    if(*(pte = walk(pagetable, i, 0)) != 0){
+      //printf("%p: %p\n", i, pte);
+      //vmprint(pagetable);
+      return -1;
+    }
+  }
+  return 0;
 }

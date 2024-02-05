@@ -90,6 +90,8 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
 
   for(int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
+    // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000)
+    //   printf("walk %d: %p %p\n", level, *pte, PTE2PA(*pte));
     if(*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
@@ -99,6 +101,10 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
       *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
+  // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000){
+  //   printf("walk 0: %d %p\n", PX(0, va), pagetable[PX(0, va)]);
+  //   //vmprint_level(pagetable, 2);
+  // }
   return &pagetable[PX(0, va)];
 }
 
@@ -115,6 +121,8 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
+  // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000)
+  //   vmprint(pagetable);
   if(pte == 0)
     return 0;
   if((*pte & PTE_V) == 0)
@@ -122,6 +130,8 @@ walkaddr(pagetable_t pagetable, uint64 va)
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
+  // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000)
+  //   printf("walkaddr: %p %p\n", pte, pa);
   return pa;
 }
 
@@ -150,17 +160,23 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
+  // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000)
+  //   vmprint(pagetable);
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V)
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
+    // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000)
+    //   printf("mappages: %p %p %p\n", *pte, pa, va);
     if(a == last)
       break;
     a += PGSIZE;
     pa += PGSIZE;
   }
+  // if(va == 0x0000003ffff68000 || va == 0x0000003ffff69000)
+  //   vmprint(pagetable);
   return 0;
 }
 
@@ -353,6 +369,8 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
 
+  // if((dstva & 0xfffffffffffff000) == 0x0000003ffff68000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff69000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff6a000)
+  //   printf("copyout start: %p %d\n", dstva, len);
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
@@ -361,12 +379,18 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
+    // if((dstva & 0xfffffffffffff000) == 0x0000003ffff68000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff69000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff6a000)
+    //   printf("copyout: %p %p %d\n", va0, pa0, n);
     memmove((void *)(pa0 + (dstva - va0)), src, n);
 
     len -= n;
     src += n;
     dstva = va0 + PGSIZE;
+    // if((dstva & 0xfffffffffffff000) == 0x0000003ffff68000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff69000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff6a000)
+    //   printf("copyout: %p %d\n", dstva, len);
   }
+  // if((dstva & 0xfffffffffffff000) == 0x0000003ffff68000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff69000 || (dstva & 0xfffffffffffff000) == 0x0000003ffff6a000)
+  //   printf("copyout end\n");
   return 0;
 }
 
@@ -436,4 +460,29 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+void
+vmprint_level(pagetable_t pagetable, int level)
+{
+  if(level >= 3)
+    return;
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      for(int j = 0; j <= level; j++)
+        printf(" ..");
+      printf("%d: pte %p pa %p\n", i, pte, child);
+      vmprint_level((pagetable_t)child, level + 1);
+    }
+  }
+}
+
+void
+vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  vmprint_level(pagetable, 0);
 }

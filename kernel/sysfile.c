@@ -503,3 +503,65 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_mmap(void)
+{
+  int length, prot, flags;
+  struct file* f;
+  struct proc* p = myproc();
+
+  argint(1, &length);
+  argint(2, &prot);
+  argint(3, &flags);
+  argfd(4, 0, &f);
+
+  if((flags & MAP_SHARED) && (((prot & PROT_WRITE) != 0) && (f->writable == 0)))
+    return 0xffffffffffffffff;
+
+  struct vma* v = vma_alloc(p);
+  if(v == 0)
+    return 0xffffffffffffffff;
+  v->addr = p->vma_start - length;
+  v->length = length;
+  v->permission = prot;
+  v->mode = flags;
+  v->file = f;
+  filedup(f);
+
+  //printf("%p %d %d %d %p\n", v->addr, length, prot, flags, v);
+  // printf("mmap start addr: %p %p %d\n", MAXVA, p->vma_start, length);
+  // printf("mmap fd: %d\n", v->file->ip->inum);
+  if(vma_verify(v, p->pagetable) != 0){
+    return 0xffffffffffffffff;
+  }
+  p->vma_start -= length;
+
+  return v->addr;
+}
+
+uint64
+sys_munmap(void)
+{
+  uint64 addr;
+  int length;
+  struct proc* p = myproc();
+  struct vma* v = 0;
+
+  argaddr(0, &addr);
+  argint(1, &length);
+  // printf("unmap: %p, %d\n", addr, length);
+
+  for(int i = 0; i < VMA_SIZE; ++i) {
+    // printf("unmap cur: %p, %d\n", p->vma_table[i].addr, p->vma_table[i].length);
+    if((p->vma_table[i].addr == addr && p->vma_table[i].addr + p->vma_table[i].length >= addr + length) || 
+          (p->vma_table[i].addr <= addr && p->vma_table[i].addr + p->vma_table[i].length == addr + length)){
+      v = &p->vma_table[i];
+      break;
+    }
+  }
+  if(v == 0)
+    return -1;
+  
+  return vma_unmap(p->pagetable, v, addr, length);
+}
